@@ -204,7 +204,6 @@
         let time = 0, spaceHoldTime = 0, cycleTime = 0;
         let cameraDistance = 15, cameraHeight = 5;
         let lastWTime = 0, wTapCount = 0, boostEndTime = 0;
-        let terrainChunks = {}, chunkSize = 3000, renderDistance = 2;
 
         function fractalNoise(x, z, octaves = 8) {
             let total = 0, frequency = 0.02, amplitude = 1, maxValue = 0;
@@ -224,7 +223,7 @@
             }
 
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
             camera.position.set(0, 10, 15);
 
             renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
@@ -234,13 +233,12 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
             createCosmicSky();
-            updateTerrain();
+            createTerrain();
             createShip();
             createSkyscraper();
             createNPCShips();
             setupJoystick();
             setupControls();
-            createCloudsAndFog();
 
             window.addEventListener('resize', onWindowResize);
             document.addEventListener('pointerdown', onPointerDown);
@@ -251,15 +249,14 @@
         }
 
         function createCosmicSky() {
-            const skyGeometry = new THREE.SphereGeometry(4000, 64, 64);
+            const skyGeometry = new THREE.SphereGeometry(2000, 32, 32);
             skyGeometry.scale(-1, 1, 1);
 
             const uniforms = {
                 time: { value: 0 },
                 baseColor: { value: new THREE.Vector3(0.05, 0.1, 0.3) },
                 pulseIntensity: { value: 0.5 },
-                dayNight: { value: 0 },
-                glowColor: { value: new THREE.Vector3(0.2, 0.8, 1.0) }
+                dayNight: { value: 0 }
             };
 
             const vertexShader = `
@@ -272,7 +269,6 @@
             const fragmentShader = `
                 uniform float time;
                 uniform vec3 baseColor;
-                uniform vec3 glowColor;
                 uniform float pulseIntensity;
                 uniform float dayNight;
                 varying vec3 vWorldPosition;
@@ -283,9 +279,7 @@
                     vec3 dayColor = mix(vec3(0.7, 0.9, 1.0), vec3(1.0, 1.0, 0.9), noise + 0.5);
                     vec3 color = mix(nightColor, dayColor, dayNight);
                     float pulse = sin(time * 0.5 + dir.z * 5.0) * pulseIntensity * (1.0 - dayNight);
-                    float horizonGlow = pow(1.0 - abs(dir.y), 3.0) * 0.5;
-                    vec3 finalColor = color + pulse * 0.3 + glowColor * horizonGlow;
-                    gl_FragColor = vec4(finalColor, 1.0);
+                    gl_FragColor = vec4(color + pulse * 0.3, 1.0);
                 }
             `;
 
@@ -315,9 +309,9 @@
             const particleGeometry = new THREE.BufferGeometry();
             const particleVertices = [];
             for (let i = 0; i < 5000; i++) {
-                const x = (Math.random() - 0.5) * 4000;
-                const y = Math.random() * 2000 + 50;
-                const z = (Math.random() - 0.5) * 4000;
+                const x = (Math.random() - 0.5) * 2500;
+                const y = Math.random() * 1000 + 50;
+                const z = (Math.random() - 0.5) * 2500;
                 particleVertices.push(x, y, z);
             }
             particleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(particleVertices, 3));
@@ -328,18 +322,18 @@
             scene.add(new THREE.AmbientLight(0x404060, 0.6));
         }
 
-        function createTerrainChunk(chunkX, chunkZ) {
-            const geometry = new THREE.PlaneGeometry(chunkSize, chunkSize, 256, 256);
-            geometry.rotateX(-Math.PI / 2);
-            const vertices = geometry.attributes.position.array;
+        function createTerrain() {
+            const groundGeometry = new THREE.PlaneGeometry(3000, 3000, 256, 256);
+            groundGeometry.rotateX(-Math.PI / 2);
+            const vertices = groundGeometry.attributes.position.array;
             for (let i = 0; i < vertices.length; i += 3) {
-                const x = vertices[i] + chunkX * chunkSize;
-                const z = vertices[i + 2] + chunkZ * chunkSize;
-                vertices[i + 1] = fractalNoise(x, z);
+                const x = vertices[i], z = vertices[i + 2];
+                const distance = Math.sqrt(x * x + z * z);
+                vertices[i + 1] = fractalNoise(x, z) * (1 - Math.min(1, distance / 900));
             }
-            geometry.computeVertexNormals();
+            groundGeometry.computeVertexNormals();
 
-            const material = new THREE.MeshStandardMaterial({
+            const groundMaterial = new THREE.MeshStandardMaterial({
                 color: 0x1e2a4a,
                 roughness: 0.7,
                 metalness: 0.2,
@@ -347,65 +341,11 @@
                 emissiveIntensity: 0.8,
                 vertexColors: true
             });
-            const chunk = new THREE.Mesh(geometry, material);
-            chunk.position.set(chunkX * chunkSize, 0, chunkZ * chunkSize);
-            chunk.receiveShadow = true;
-            return chunk;
-        }
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.receiveShadow = true;
+            scene.add(ground);
 
-        function updateTerrain() {
-            const shipChunkX = Math.floor(ship.position.x / chunkSize);
-            const shipChunkZ = Math.floor(ship.position.z / chunkSize);
-
-            for (let x = shipChunkX - renderDistance; x <= shipChunkX + renderDistance; x++) {
-                for (let z = shipChunkZ - renderDistance; z <= shipChunkZ + renderDistance; z++) {
-                    const key = `${x},${z}`;
-                    if (!terrainChunks[key]) {
-                        const chunk = createTerrainChunk(x, z);
-                        scene.add(chunk);
-                        terrainChunks[key] = chunk;
-                    }
-                }
-            }
-
-            for (const key in terrainChunks) {
-                const [x, z] = key.split(',').map(Number);
-                if (Math.abs(x - shipChunkX) > renderDistance + 1 || Math.abs(z - shipChunkZ) > renderDistance + 1) {
-                    scene.remove(terrainChunks[key]);
-                    delete terrainChunks[key];
-                }
-            }
-        }
-
-        function createCloudsAndFog() {
-            const cloudGeometry = new THREE.BufferGeometry();
-            const cloudVertices = [];
-            const cloudColors = [];
-            for (let i = 0; i < 5000; i++) {
-                const x = (Math.random() - 0.5) * 4000;
-                const y = Math.random() * 200 + 50;
-                const z = (Math.random() - 0.5) * 4000;
-                cloudVertices.push(x, y, z);
-                const hue = Math.random() * 0.2 + 0.5;
-                cloudColors.push(hue, 0.8, 0.9);
-            }
-            cloudGeometry.setAttribute('position', new THREE.Float32BufferAttribute(cloudVertices, 3));
-            cloudGeometry.setAttribute('color', new THREE.Float32BufferAttribute(cloudColors, 3));
-
-            const cloudMaterial = new THREE.PointsMaterial({
-                size: 20,
-                transparent: true,
-                opacity: 0.6,
-                vertexColors: true,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-            const clouds = new THREE.Points(cloudGeometry, cloudMaterial);
-            clouds.userData = { speed: 0.01 };
-            scene.add(clouds);
-
-            const fog = new THREE.FogExp2(0x1e2a4a, 0.0002);
-            scene.fog = fog;
+            addEnvironmentDetails();
         }
 
         function createShip() {
@@ -744,14 +684,6 @@
                     if (child.position.x > 600) child.position.x = -600;
                     child.scale.setScalar(1 + Math.sin(time * 2 + child.userData.hover) * 0.15);
                 }
-                if (child.type === 'Points' && child.userData.speed) {
-                    const positions = child.geometry.attributes.position.array;
-                    for (let i = 0; i < positions.length; i += 3) {
-                        positions[i] += child.userData.speed;
-                        if (positions[i] > 2000) positions[i] = -2000;
-                    }
-                    child.geometry.attributes.position.needsUpdate = true;
-                }
             });
 
             npcShips.forEach(ship => {
@@ -793,10 +725,8 @@
             const offset = new THREE.Vector3(0, cameraHeight, cameraDistance).applyQuaternion(camera.quaternion);
             camera.position.lerp(ship.position.clone().add(offset), 0.15);
 
-            updateTerrain();
-
-            const groundChunks = Object.values(terrainChunks);
-            for (const ground of groundChunks) {
+            const ground = scene.children.find(child => child.isMesh && child.geometry.type === 'PlaneGeometry');
+            if (ground) {
                 const raycaster = new THREE.Raycaster(ship.position, new THREE.Vector3(0, -1, 0), 0, 20);
                 const intersects = raycaster.intersectObject(ground);
                 if (intersects.length > 0) {
@@ -805,10 +735,8 @@
                         velocity.y = Math.max(0, velocity.y);
                     }
                     const colors = ground.geometry.attributes.color || new THREE.Float32BufferAttribute(new Float32Array(ground.geometry.attributes.position.count * 3), 3);
-                    const chunkX = ground.position.x / chunkSize;
-                    const chunkZ = ground.position.z / chunkSize;
-                    const shipX = Math.floor((ship.position.x - chunkX * chunkSize + chunkSize / 2) / chunkSize * 256);
-                    const shipZ = Math.floor((ship.position.z - chunkZ * chunkSize + chunkSize / 2) / chunkSize * 256);
+                    const shipX = Math.floor((ship.position.x + 1500) / 3000 * 256);
+                    const shipZ = Math.floor((ship.position.z + 1500) / 3000 * 256);
                     for (let i = 0; i < colors.count; i++) {
                         const dx = Math.abs(i % 256 - shipX);
                         const dz = Math.abs(Math.floor(i / 256) - shipZ);
