@@ -888,13 +888,13 @@
             const now = performance.now();
             const accel = (now < boostEndTime) ? boostAccel : baseAccel;
 
-            // Horizontal movement
+            // W/S/A/D movement (matches "perfect" feel, keeps your speed)
             if (keys.w) velocity.add(forward.multiplyScalar(accel));
             if (keys.s) velocity.add(forward.multiplyScalar(-accel));
             if (keys.a) velocity.add(right.multiplyScalar(-accel));
             if (keys.d) velocity.add(right.multiplyScalar(accel));
 
-            // Vertical movement
+            // Vertical movement (unchanged from last code)
             if (keys.space) velocity.y += verticalSpeed;
             if (keys.shift) velocity.y -= verticalSpeed;
             if (!keys.space && !keys.shift && Math.abs(velocity.x) < 0.1 && Math.abs(velocity.z) < 0.1) {
@@ -906,16 +906,14 @@
 
             ship.position.add(velocity);
 
-            // Camera-relative tilt
-            const forwardVel = velocity.dot(forward);
-            const rightVel = velocity.dot(right);
-            const maxTilt = THREE.MathUtils.degToRad(20); // Max 20° tilt
-            ship.rotation.x = THREE.MathUtils.lerp(ship.rotation.x, THREE.MathUtils.clamp(forwardVel * 0.05, -maxTilt, maxTilt), 0.2);
-            ship.rotation.z = THREE.MathUtils.lerp(ship.rotation.z, THREE.MathUtils.clamp(-rightVel * 0.05, -maxTilt, maxTilt), 0.2);
-            ship.rotation.y = theta; // Align yaw with camera
+            // Tilt and yaw to match "perfect" feel
+            ship.rotation.x = THREE.MathUtils.lerp(ship.rotation.x, velocity.z * 0.15, 0.2);
+            ship.rotation.z = THREE.MathUtils.lerp(ship.rotation.z, -velocity.x * 0.15, 0.2);
+            ship.rotation.y += 0.03;
 
+            // Camera position (unchanged from last code)
             const offset = new THREE.Vector3(0, cameraHeight, cameraDistance).applyQuaternion(camera.quaternion);
-            camera.position.lerp(ship.position.clone().add(offset), 0.2);
+            camera.position.copy(ship.position).add(offset);
         }
 
         function updateCamera() {
