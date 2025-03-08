@@ -914,9 +914,8 @@
             ship.rotation.z = THREE.MathUtils.lerp(ship.rotation.z, THREE.MathUtils.clamp(-rightVel * 0.05, -maxTilt, maxTilt), 0.2);
             ship.rotation.y = theta; // Align yaw with camera
 
-            // Camera position locked to ship speed
             const offset = new THREE.Vector3(0, cameraHeight, cameraDistance).applyQuaternion(camera.quaternion);
-            camera.position.copy(ship.position).add(offset);
+            camera.position.lerp(ship.position.clone().add(offset), 0.2);
         }
 
         function updateCamera() {
