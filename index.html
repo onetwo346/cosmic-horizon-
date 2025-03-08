@@ -162,7 +162,7 @@
 <body>
     <div id="intro">
         <h1>Cosmic Horizon</h1>
-        <p>Rule an expanded cosmic dominion, pilot your saucer through day and night, and conquer towering skyscrapers in this retro-futuristic epic!</p>
+        <p>Rule an expanded cosmic dominion, pilot your saucer at blazing speeds through day and night, and conquer towering skyscrapers in this retro-futuristic epic!</p>
         <div id="start-button">Tap to Start</div>
         <div id="footer">Designed by Nana Kofi cosmoscoderr@gmail.com</div>
     </div>
@@ -194,7 +194,7 @@
 
         let camera, scene, renderer, ship, skyMaterial, cosmicLights = [], npcShips = [];
         let velocity = new THREE.Vector3();
-        const maxSpeed = 0.3, baseAccel = 0.05, boostAccel = 0.2, friction = 0.96, liftSpeed = 0.2, blastSpeed = 10;
+        const maxSpeed = 0.8, baseAccel = 0.15, boostAccel = 0.45, friction = 0.96, liftSpeed = 0.5, blastSpeed = 10;
         let keys = { w: false, s: false, a: false, d: false, space: false };
         let isUserInteracting = false, onPointerDownMouseX = 0, onPointerDownMouseY = 0;
         let lon = 0, onPointerDownLon = 0, lat = 0, onPointerDownLat = 0;
@@ -541,7 +541,7 @@
                         if (now - lastWTime < 300) {
                             wTapCount++;
                             if (wTapCount >= 2) {
-                                boostEndTime = now + 800; // 0.8s boost
+                                boostEndTime = now + 800;
                             }
                         } else {
                             wTapCount = 1;
