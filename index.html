@@ -292,7 +292,7 @@
             const sky = new THREE.Mesh(skyGeometry, skyMaterial);
             scene.add(sky);
 
-            for (let i = 0; i < 3; i++) { // Reduced to 3, cleaner sky
+            for (let i = 0; i < 3; i++) {
                 const lightGeometry = new THREE.SphereGeometry(8 - i * 2, 16, 16);
                 const lightMaterial = new THREE.MeshBasicMaterial({ color: i === 0 ? 0xffaa88 : i === 1 ? 0x88ccff : 0xffff88 });
                 const light = new THREE.Mesh(lightGeometry, lightMaterial);
@@ -717,14 +717,6 @@
             velocity.multiplyScalar(friction);
 
             ship.position.add(velocity);
-
-            // Smooth hover when idle
-            if (!keys.w && !keys.s && !keys.a && !keys.d && !keys.space) {
-                ship.position.y = 10 + Math.sin(time * 2) * 0.1;
-                velocity.y *= 0.9; // Gentle dampening
-            } else {
-                ship.position.y += Math.sin(time * 2) * 0.05; // Slight bob when moving
-            }
 
             ship.rotation.x = THREE.MathUtils.lerp(ship.rotation.x, velocity.z * 0.15, 0.2);
             ship.rotation.z = THREE.MathUtils.lerp(ship.rotation.z, -velocity.x * 0.15, 0.2);
