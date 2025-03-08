@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cosmic Horizon: Saucer Explorer</title>
+    <title>Cosmic Horizon: Dominion Expanded</title>
     <style>
         * {
             margin: 0;
@@ -162,7 +162,7 @@
 <body>
     <div id="intro">
         <h1>Cosmic Horizon</h1>
-        <p>Explore an infinite cosmic realm, pilot your saucer through day and night, and land on towering skyscrapers in this retro-futuristic adventure!</p>
+        <p>Rule an expanded cosmic dominion, pilot your saucer through day and night, and conquer towering skyscrapers in this retro-futuristic epic!</p>
         <div id="start-button">Tap to Start</div>
         <div id="footer">Designed by Nana Kofi cosmoscoderr@gmail.com</div>
     </div>
@@ -205,16 +205,16 @@
         let cameraDistance = 15, cameraHeight = 5;
         let lastWTime = 0, wTapCount = 0, boostEndTime = 0;
 
-        function fractalNoise(x, z, octaves = 6) {
-            let total = 0, frequency = 0.025, amplitude = 1, maxValue = 0;
+        function fractalNoise(x, z, octaves = 8) {
+            let total = 0, frequency = 0.02, amplitude = 1, maxValue = 0;
             for (let i = 0; i < octaves; i++) {
                 total += Math.sin(x * frequency) * Math.cos(z * frequency) * amplitude;
-                total += Math.random() * 0.3 * amplitude;
+                total += Math.random() * 0.5 * amplitude;
                 maxValue += amplitude;
-                amplitude *= 0.6;
-                frequency *= 2;
+                amplitude *= 0.55;
+                frequency *= 2.2;
             }
-            return total / maxValue * 20;
+            return total / maxValue * 40; // Taller peaks
         }
 
         function init() {
@@ -223,7 +223,7 @@
             }
 
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
             camera.position.set(0, 10, 15);
 
             renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
@@ -250,7 +250,7 @@
         }
 
         function createCosmicSky() {
-            const skyGeometry = new THREE.SphereGeometry(1500, 32, 32);
+            const skyGeometry = new THREE.SphereGeometry(2000, 32, 32);
             skyGeometry.scale(-1, 1, 1);
 
             const uniforms = {
@@ -300,7 +300,7 @@
                 scene.add(light);
                 cosmicLights.push(light);
 
-                const pointLight = new THREE.PointLight(lightMaterial.color, 2, 800);
+                const pointLight = new THREE.PointLight(lightMaterial.color, 2, 1000);
                 pointLight.castShadow = true;
                 pointLight.shadow.mapSize.width = 1024;
                 pointLight.shadow.mapSize.height = 1024;
@@ -309,10 +309,10 @@
 
             const particleGeometry = new THREE.BufferGeometry();
             const particleVertices = [];
-            for (let i = 0; i < 2000; i++) {
-                const x = (Math.random() - 0.5) * 1800;
-                const y = Math.random() * 800 + 50;
-                const z = (Math.random() - 0.5) * 1800;
+            for (let i = 0; i < 5000; i++) { // More stars!
+                const x = (Math.random() - 0.5) * 2500;
+                const y = Math.random() * 1000 + 50;
+                const z = (Math.random() - 0.5) * 2500;
                 particleVertices.push(x, y, z);
             }
             particleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(particleVertices, 3));
@@ -324,13 +324,13 @@
         }
 
         function createTerrain() {
-            const groundGeometry = new THREE.PlaneGeometry(2000, 2000, 128, 128);
+            const groundGeometry = new THREE.PlaneGeometry(3000, 3000, 256, 256); // Bigger terrain
             groundGeometry.rotateX(-Math.PI / 2);
             const vertices = groundGeometry.attributes.position.array;
             for (let i = 0; i < vertices.length; i += 3) {
                 const x = vertices[i], z = vertices[i + 2];
                 const distance = Math.sqrt(x * x + z * z);
-                vertices[i + 1] = fractalNoise(x, z) * (1 - Math.min(1, distance / 600));
+                vertices[i + 1] = fractalNoise(x, z) * (1 - Math.min(1, distance / 900));
             }
             groundGeometry.computeVertexNormals();
 
@@ -339,7 +339,7 @@
                 roughness: 0.7,
                 metalness: 0.2,
                 emissive: 0x102030,
-                emissiveIntensity: 0.6,
+                emissiveIntensity: 0.8,
                 vertexColors: true
             });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -402,11 +402,11 @@
 
         function createNPCShips() {
             const colors = [0xffaa88, 0x88ccff, 0xddaaff, 0xffff88, 0xff88ff];
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 8; i++) { // More ships!
                 const npcShip = new THREE.Group();
 
                 const baseGeometry = new THREE.CylinderGeometry(3, 2.5, 0.8, 16, 1);
-                const baseMaterial = new THREE.MeshPhongMaterial({ color: colors[i], shininess: 50 });
+                const baseMaterial = new THREE.MeshPhongMaterial({ color: colors[i % 5], shininess: 50 });
                 const base = new THREE.Mesh(baseGeometry, baseMaterial);
                 base.castShadow = true;
                 npcShip.add(base);
@@ -419,17 +419,18 @@
                 npcShip.add(dome);
 
                 const ringGeometry = new THREE.TorusGeometry(2, 0.2, 6, 16);
-                const ringMaterial = new THREE.MeshBasicMaterial({ color: colors[i], emissive: colors[i] });
+                const ringMaterial = new THREE.MeshBasicMaterial({ color: colors[i % 5], emissive: colors[i % 5] });
                 const ring = new THREE.Mesh(ringGeometry, ringMaterial);
                 ring.rotation.x = Math.PI / 2;
                 ring.position.y = -0.1;
                 npcShip.add(ring);
 
-                npcShip.position.set(Math.random() * 800 - 400, 50 + Math.random() * 50, Math.random() * 800 - 400);
+                npcShip.position.set(Math.random() * 1200 - 600, 50 + Math.random() * 100, Math.random() * 1200 - 600);
                 npcShip.userData = {
                     speed: Math.random() * 0.1 + 0.05,
-                    angleX: Math.random() * Math.PI * 2,
-                    angleZ: Math.random() * Math.PI * 2
+                    orbitRadius: Math.random() * 400 + 200,
+                    orbitAngle: Math.random() * Math.PI * 2,
+                    heightAngle: Math.random() * Math.PI
                 };
                 scene.add(npcShip);
                 npcShips.push(npcShip);
@@ -438,50 +439,55 @@
 
         function createAliens() {
             const colors = [0x00ff88, 0xff00aa, 0x00ccff];
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 15; i++) { // More aliens!
                 const alien = new THREE.Group();
 
                 const bodyGeometry = new THREE.SphereGeometry(1.5, 16, 16);
-                const bodyMaterial = new THREE.MeshPhongMaterial({ color: colors[i % 3], emissive: colors[i % 3], emissiveIntensity: 0.3, shininess: 50 });
+                const bodyMaterial = new THREE.MeshPhongMaterial({ color: colors[i % 3], emissive: colors[i % 3], emissiveIntensity: 0.5, shininess: 50 });
                 const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-                body.position.y = 2;
+                body.position.y = 2.5;
                 alien.add(body);
 
-                const tentacleGeometry = new THREE.CylinderGeometry(0.1, 0.3, 2, 8);
-                for (let j = 0; j < 4; j++) {
+                const segmentGeometry = new THREE.SphereGeometry(1, 12, 12);
+                const segment = new THREE.Mesh(segmentGeometry, bodyMaterial);
+                segment.position.y = 1;
+                alien.add(segment);
+
+                const tentacleGeometry = new THREE.CylinderGeometry(0.1, 0.3, 2.5, 8);
+                for (let j = 0; j < 6; j++) { // More tentacles!
                     const tentacle = new THREE.Mesh(tentacleGeometry, bodyMaterial);
-                    tentacle.position.set(Math.cos(j * Math.PI / 2) * 1.2, 1, Math.sin(j * Math.PI / 2) * 1.2);
+                    tentacle.position.set(Math.cos(j * Math.PI / 3) * 1.5, 1.2, Math.sin(j * Math.PI / 3) * 1.5);
                     tentacle.rotation.z = Math.PI / 4 * (j % 2 ? 1 : -1);
                     alien.add(tentacle);
                 }
 
-                const x = Math.random() * 800 - 400;
-                const z = Math.random() * 800 - 400;
-                alien.position.set(x, fractalNoise(x, z) + 2, z);
-                alien.userData = { speed: Math.random() * 0.05 + 0.02, angle: Math.random() * Math.PI * 2 };
+                const x = Math.random() * 1200 - 600;
+                const z = Math.random() * 1200 - 600;
+                alien.position.set(x, fractalNoise(x, z) + 2.5, z);
+                alien.userData = { speed: Math.random() * 0.08 + 0.04, angle: Math.random() * Math.PI * 2, bounce: Math.random() };
                 scene.add(alien);
                 aliens.push(alien);
             }
         }
 
         function addEnvironmentDetails() {
-            for (let i = 0; i < 15; i++) {
+            for (let i = 0; i < 20; i++) {
                 const orbGeometry = new THREE.SphereGeometry(Math.random() * 4 + 2, 12, 12);
                 const orbMaterial = new THREE.MeshBasicMaterial({ color: 0x88ccff, transparent: true, opacity: 0.75 });
                 const orb = new THREE.Mesh(orbGeometry, orbMaterial);
-                orb.position.set(Math.random() * 800 - 400, Math.random() * 60 + 100, Math.random() * 800 - 400);
+                orb.position.set(Math.random() * 1200 - 600, Math.random() * 80 + 120, Math.random() * 1200 - 600);
                 orb.userData = { speed: Math.random() * 0.02 + 0.01, hover: Math.random() * 3 };
                 scene.add(orb);
             }
 
             function createSpire(x, z) {
-                const baseGeometry = new THREE.CylinderGeometry(0.4, 0.6, 4, 6);
+                const baseGeometry = new THREE.CylinderGeometry(0.5, 0.8, 6, 6);
                 const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x3a5a7a, roughness: 0.65 });
                 const base = new THREE.Mesh(baseGeometry, baseMaterial);
-                base.position.set(x, fractalNoise(x, z) + 2, z);
+                base.position.set(x, fractalNoise(x, z) + 3, z);
                 base.castShadow = true;
 
-                const spireGeometry = new THREE.TetrahedronGeometry(2, 0);
+                const spireGeometry = new THREE.TetrahedronGeometry(3, 0);
                 const spireMaterial = new THREE.MeshPhongMaterial({
                     color: 0x00aaff,
                     emissive: 0x0077cc,
@@ -490,42 +496,60 @@
                     opacity: 0.9
                 });
                 const spire = new THREE.Mesh(spireGeometry, spireMaterial);
-                spire.position.set(x, fractalNoise(x, z) + 5, z);
+                spire.position.set(x, fractalNoise(x, z) + 7, z);
                 spire.castShadow = true;
                 spire.rotation.y = Math.random() * Math.PI;
 
                 scene.add(base, spire);
             }
 
-            for (let i = 0; i < 50; i++) {
+            for (let i = 0; i < 80; i++) {
                 const angle = Math.random() * Math.PI * 2;
-                const radius = Math.random() * 400 + 100;
+                const radius = Math.random() * 600 + 150;
                 createSpire(Math.cos(angle) * radius, Math.sin(angle) * radius);
             }
 
-            for (let i = 0; i < 8; i++) {
-                const poolGeometry = new THREE.CircleGeometry(8 + Math.random() * 4, 16);
+            for (let i = 0; i < 12; i++) {
+                const poolGeometry = new THREE.CircleGeometry(10 + Math.random() * 5, 16);
                 const poolMaterial = new THREE.MeshBasicMaterial({ color: 0x00ccff, emissive: 0x00ccff, transparent: true, opacity: 0.6 });
                 const pool = new THREE.Mesh(poolGeometry, poolMaterial);
                 pool.rotation.x = -Math.PI / 2;
-                pool.position.set(Math.random() * 800 - 400, fractalNoise(pool.position.x, pool.position.z) + 0.1, Math.random() * 800 - 400);
+                pool.position.set(Math.random() * 1200 - 600, fractalNoise(pool.position.x, pool.position.z) + 0.1, Math.random() * 1200 - 600);
                 scene.add(pool);
             }
 
-            for (let i = 0; i < 3; i++) {
-                const islandGeometry = new THREE.PlaneGeometry(20 + Math.random() * 10, 20 + Math.random() * 10, 8, 8);
+            for (let i = 0; i < 5; i++) {
+                const islandGeometry = new THREE.PlaneGeometry(30 + Math.random() * 15, 30 + Math.random() * 15, 12, 12);
                 islandGeometry.rotateX(-Math.PI / 2);
                 const vertices = islandGeometry.attributes.position.array;
                 for (let j = 0; j < vertices.length; j += 3) {
-                    vertices[j + 1] += Math.random() * 5 - 2.5;
+                    vertices[j + 1] += Math.random() * 8 - 4;
                 }
                 islandGeometry.computeVertexNormals();
                 const islandMaterial = new THREE.MeshStandardMaterial({ color: 0x304a7a, roughness: 0.9 });
                 const island = new THREE.Mesh(islandGeometry, islandMaterial);
-                island.position.set(Math.random() * 800 - 400, 50 + Math.random() * 50, Math.random() * 800 - 400);
+                island.position.set(Math.random() * 1200 - 600, 60 + Math.random() * 60, Math.random() * 1200 - 600);
                 island.castShadow = true;
                 island.receiveShadow = true;
                 scene.add(island);
+            }
+
+            for (let i = 0; i < 30; i++) { // Glowing crystals
+                const crystalGeometry = new THREE.TetrahedronGeometry(3 + Math.random() * 2, 1);
+                const crystalMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x00ffcc,
+                    emissive: 0x00cc99,
+                    shininess: 80,
+                    transparent: true,
+                    opacity: 0.85
+                });
+                const crystal = new THREE.Mesh(crystalGeometry, crystalMaterial);
+                const x = Math.random() * 1200 - 600;
+                const z = Math.random() * 1200 - 600;
+                crystal.position.set(x, fractalNoise(x, z) + 3, z);
+                crystal.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+                crystal.castShadow = true;
+                scene.add(crystal);
             }
         }
 
@@ -548,10 +572,10 @@
                     case 'w': 
                         keys.w = true; 
                         const now = performance.now();
-                        if (now - lastWTime < 300) { // Double-tap within 300ms
+                        if (now - lastWTime < 300) {
                             wTapCount++;
                             if (wTapCount >= 2) {
-                                boostEndTime = now + 1000; // Boost for 1s
+                                boostEndTime = now + 1000;
                             }
                         } else {
                             wTapCount = 1;
@@ -683,45 +707,46 @@
             skyMaterial.uniforms.dayNight.value = dayNight;
             skyMaterial.uniforms.pulseIntensity.value = 0.5 * (1 - dayNight);
 
-            cosmicLights[0].position.set(Math.cos(time) * 400, Math.sin(time * 0.8) * 250 * (1 - dayNight), Math.sin(time) * 400);
-            cosmicLights[1].position.set(Math.cos(time + 2) * 350, Math.sin(time * 0.9) * 200 * (1 - dayNight), Math.sin(time + 2) * 350);
-            cosmicLights[2].position.set(Math.cos(time + 4) * 380, Math.sin(time) * 230 * (1 - dayNight), Math.sin(time + 4) * 380);
-            cosmicLights[3].position.set(Math.sin(time + 1) * 360, Math.cos(time * 0.7) * 220 * (1 - dayNight), Math.cos(time + 1) * 360);
+            cosmicLights[0].position.set(Math.cos(time) * 500, Math.sin(time * 0.8) * 300 * (1 - dayNight), Math.sin(time) * 500);
+            cosmicLights[1].position.set(Math.cos(time + 2) * 450, Math.sin(time * 0.9) * 250 * (1 - dayNight), Math.sin(time + 2) * 450);
+            cosmicLights[2].position.set(Math.cos(time + 4) * 480, Math.sin(time) * 280 * (1 - dayNight), Math.sin(time + 4) * 480);
+            cosmicLights[3].position.set(Math.sin(time + 1) * 460, Math.cos(time * 0.7) * 260 * (1 - dayNight), Math.cos(time + 1) * 460);
 
             scene.children.forEach(child => {
-                if (child.userData.speed && !child.userData.angle && !child.userData.angleX) {
+                if (child.userData.speed && !child.userData.angle && !child.userData.orbitRadius) {
                     child.position.x += child.userData.speed;
-                    child.position.y = 100 + Math.sin(time + child.userData.hover) * 10;
-                    if (child.position.x > 400) child.position.x = -400;
+                    child.position.y = 120 + Math.sin(time + child.userData.hover) * 10;
+                    if (child.position.x > 600) child.position.x = -600;
                     child.scale.setScalar(1 + Math.sin(time * 2 + child.userData.hover) * 0.15);
                 }
             });
 
             npcShips.forEach(ship => {
-                ship.userData.angleX += ship.userData.speed * 0.03;
-                ship.userData.angleZ += ship.userData.speed * 0.02;
-                ship.position.x += Math.cos(ship.userData.angleX) * ship.userData.speed;
-                ship.position.z += Math.sin(ship.userData.angleZ) * ship.userData.speed;
-                ship.position.y = 75 + Math.sin(time + ship.position.x) * 25;
-                ship.rotation.y += 0.05;
-                if (ship.position.x > 1000) ship.position.x = -1000;
-                if (ship.position.x < -1000) ship.position.x = 1000;
-                if (ship.position.z > 1000) ship.position.z = -1000;
-                if (ship.position.z < -1000) ship.position.z = 1000;
+                ship.userData.orbitAngle += ship.userData.speed * 0.02;
+                ship.userData.heightAngle += ship.userData.speed * 0.01;
+                ship.position.x = Math.cos(ship.userData.orbitAngle) * ship.userData.orbitRadius;
+                ship.position.z = Math.sin(ship.userData.orbitAngle) * ship.userData.orbitRadius;
+                ship.position.y = 50 + Math.sin(ship.userData.heightAngle) * 100; // Smooth height variation
+                ship.rotation.y += 0.03;
+                if (ship.position.x > 1500) ship.position.x = -1500;
+                if (ship.position.x < -1500) ship.position.x = 1500;
+                if (ship.position.z > 1500) ship.position.z = -1500;
+                if (ship.position.z < -1500) ship.position.z = 1500;
             });
 
             aliens.forEach(alien => {
-                alien.userData.angle += alien.userData.speed * 0.1;
+                alien.userData.angle += alien.userData.speed * 0.08;
                 alien.position.x += Math.cos(alien.userData.angle) * alien.userData.speed;
                 alien.position.z += Math.sin(alien.userData.angle) * alien.userData.speed;
-                alien.position.y = fractalNoise(alien.position.x, alien.position.z) + 2 + Math.sin(time * 3) * 0.3;
+                alien.position.y = fractalNoise(alien.position.x, alien.position.z) + 2.5 + Math.sin(time * 2 + alien.userData.bounce) * 0.8;
                 alien.children.forEach((child, idx) => {
-                    if (idx > 0) child.rotation.z = Math.PI / 4 * (idx % 2 ? 1 : -1) + Math.sin(time + idx) * 0.2;
+                    if (idx > 1) child.rotation.z = Math.PI / 4 * (idx % 2 ? 1 : -1) + Math.sin(time * 1.5 + idx) * 0.3;
                 });
-                if (alien.position.x > 1000) alien.position.x = -1000;
-                if (alien.position.x < -1000) alien.position.x = 1000;
-                if (alien.position.z > 1000) alien.position.z = -1000;
-                if (alien.position.z < -1000) alien.position.z = 1000;
+                alien.rotation.y += 0.02;
+                if (alien.position.x > 1500) alien.position.x = -1500;
+                if (alien.position.x < -1500) alien.position.x = 1500;
+                if (alien.position.z > 1500) alien.position.z = -1500;
+                if (alien.position.z < -1500) alien.position.z = 1500;
             });
         }
 
@@ -761,11 +786,11 @@
                         velocity.y = Math.max(0, velocity.y);
                     }
                     const colors = ground.geometry.attributes.color || new THREE.Float32BufferAttribute(new Float32Array(ground.geometry.attributes.position.count * 3), 3);
-                    const shipX = Math.floor((ship.position.x + 1000) / 2000 * 128);
-                    const shipZ = Math.floor((ship.position.z + 1000) / 2000 * 128);
+                    const shipX = Math.floor((ship.position.x + 1500) / 3000 * 256);
+                    const shipZ = Math.floor((ship.position.z + 1500) / 3000 * 256);
                     for (let i = 0; i < colors.count; i++) {
-                        const dx = Math.abs(i % 128 - shipX);
-                        const dz = Math.abs(Math.floor(i / 128) - shipZ);
+                        const dx = Math.abs(i % 256 - shipX);
+                        const dz = Math.abs(Math.floor(i / 256) - shipZ);
                         const dist = Math.sqrt(dx * dx + dz * dz);
                         const tint = Math.max(0, 1 - dist / 20);
                         colors.setXYZ(i, 0.12 + tint * 0.1, 0.18 + tint * 0.2, 0.29 + tint * 0.2);
