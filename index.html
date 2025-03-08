@@ -194,7 +194,7 @@
 
         let camera, scene, renderer, ship, skyMaterial, fogMaterial, cosmicLights = [], npcShips = [], waterfalls = [], fogParticles;
         let velocity = new THREE.Vector3();
-        const maxSpeed = 8.0, baseAccel = 2.0, boostAccel = 6.0, friction = 0.95, liftSpeed = 4.0, blastSpeed = 40;
+        const maxSpeed = 2.0, baseAccel = 0.5, boostAccel = 1.5, friction = 0.95, liftSpeed = 1.0, blastSpeed = 10;
         let keys = { w: false, s: false, a: false, d: false, space: false };
         let isUserInteracting = false, onPointerDownMouseX = 0, onPointerDownMouseY = 0;
         let lon = 0, onPointerDownLon = 0, lat = 0, onPointerDownLat = 0;
@@ -902,11 +902,11 @@
             ship.rotation.y += 0.03;
 
             const offset = new THREE.Vector3(0, cameraHeight, cameraDistance).applyQuaternion(camera.quaternion);
-            camera.position.lerp(ship.position.clone().add(offset), 0.2);
+            camera.position.lerp(ship.position.clone().add(offset), 0.15); // Your original camera lerp
         }
 
         function updateCamera() {
-            lon = THREE.MathUtils.lerp(lon, targetLon, 0.2);
+            lon = THREE.MathUtils.lerp(lon, targetLon, 0.2); // Your original rotation lerp
             lat = THREE.MathUtils.lerp(lat, targetLat, 0.2);
             lat = Math.max(-85, Math.min(85, lat));
 
@@ -919,7 +919,7 @@
                 camera.position.z + Math.sin(phi) * Math.sin(theta)
             );
 
-            camera.lookAt(lookAt);
+            camera.lookAt(lookAt); // Your original look-at
 
             const ground = scene.children.find(child => child.isMesh && child.geometry.type === 'PlaneGeometry');
             if (ground) {
