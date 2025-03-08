@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cosmic Horizon: Dominion Perfected</title>
+    <title>Cosmic Horizon: Moreland’s Dominion</title>
     <style>
         * {
             margin: 0;
@@ -162,7 +162,7 @@
 <body>
     <div id="intro">
         <h1>Cosmic Horizon</h1>
-        <p>Rule an expanded cosmic dominion, blaze through the skies at warp speed, and conquer towering skyscrapers in this retro-futuristic epic!</p>
+        <p>Rule Moreland’s boundless expanse—valleys, waterfalls, and mist weaving earth to sky—blazing at warp speed in this retro-futuristic epic!</p>
         <div id="start-button">Tap to Start</div>
         <div id="footer">Designed by Nana Kofi cosmoscoderr@gmail.com</div>
     </div>
@@ -192,7 +192,7 @@
             }
         });
 
-        let camera, scene, renderer, ship, skyMaterial, cosmicLights = [], npcShips = [];
+        let camera, scene, renderer, ship, skyMaterial, fogMaterial, cosmicLights = [], npcShips = [], waterfalls = [], fogParticles;
         let velocity = new THREE.Vector3();
         const maxSpeed = 2.0, baseAccel = 0.5, boostAccel = 1.5, friction = 0.95, liftSpeed = 1.0, blastSpeed = 10;
         let keys = { w: false, s: false, a: false, d: false, space: false };
@@ -206,15 +206,15 @@
         let lastWTime = 0, wTapCount = 0, boostEndTime = 0;
 
         function fractalNoise(x, z, octaves = 8) {
-            let total = 0, frequency = 0.02, amplitude = 1, maxValue = 0;
+            let total = 0, frequency = 0.015, amplitude = 1, maxValue = 0;
             for (let i = 0; i < octaves; i++) {
                 total += Math.sin(x * frequency) * Math.cos(z * frequency) * amplitude;
-                total += Math.random() * 0.5 * amplitude;
+                total += Math.random() * 0.6 * amplitude;
                 maxValue += amplitude;
-                amplitude *= 0.55;
-                frequency *= 2.2;
+                amplitude *= 0.6;
+                frequency *= 2.3;
             }
-            return total / maxValue * 40;
+            return total / maxValue * 80 - 30; // -30 to 80 for depth
         }
 
         function init() {
@@ -223,7 +223,7 @@
             }
 
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 4000);
             camera.position.set(0, 10, 15);
 
             renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
@@ -234,6 +234,7 @@
 
             createCosmicSky();
             createTerrain();
+            createVolumetricFog();
             createShip();
             createSkyscraper();
             createNPCShips();
@@ -249,7 +250,7 @@
         }
 
         function createCosmicSky() {
-            const skyGeometry = new THREE.SphereGeometry(2000, 32, 32);
+            const skyGeometry = new THREE.SphereGeometry(3000, 32, 32);
             skyGeometry.scale(-1, 1, 1);
 
             const uniforms = {
@@ -299,7 +300,7 @@
                 scene.add(light);
                 cosmicLights.push(light);
 
-                const pointLight = new THREE.PointLight(lightMaterial.color, 2, 1000);
+                const pointLight = new THREE.PointLight(lightMaterial.color, 2, 1500);
                 pointLight.castShadow = true;
                 pointLight.shadow.mapSize.width = 1024;
                 pointLight.shadow.mapSize.height = 1024;
@@ -308,10 +309,10 @@
 
             const particleGeometry = new THREE.BufferGeometry();
             const particleVertices = [];
-            for (let i = 0; i < 5000; i++) {
-                const x = (Math.random() - 0.5) * 2500;
-                const y = Math.random() * 1000 + 50;
-                const z = (Math.random() - 0.5) * 2500;
+            for (let i = 0; i < 8000; i++) {
+                const x = (Math.random() - 0.5) * 3500;
+                const y = Math.random() * 1500 + 50;
+                const z = (Math.random() - 0.5) * 3500;
                 particleVertices.push(x, y, z);
             }
             particleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(particleVertices, 3));
@@ -323,13 +324,13 @@
         }
 
         function createTerrain() {
-            const groundGeometry = new THREE.PlaneGeometry(3000, 3000, 256, 256);
+            const groundGeometry = new THREE.PlaneGeometry(8000, 8000, 512, 512);
             groundGeometry.rotateX(-Math.PI / 2);
             const vertices = groundGeometry.attributes.position.array;
             for (let i = 0; i < vertices.length; i += 3) {
                 const x = vertices[i], z = vertices[i + 2];
                 const distance = Math.sqrt(x * x + z * z);
-                vertices[i + 1] = fractalNoise(x, z) * (1 - Math.min(1, distance / 900));
+                vertices[i + 1] = fractalNoise(x, z) * Math.max(0, 1 - distance / 3500); // Fade edges
             }
             groundGeometry.computeVertexNormals();
 
@@ -345,7 +346,156 @@
             ground.receiveShadow = true;
             scene.add(ground);
 
+            for (let i = 0; i < 12; i++) {
+                const x = (Math.random() - 0.5) * 7000;
+                const z = (Math.random() - 0.5) * 7000;
+                const y = fractalNoise(x, z);
+                if (y < -15) {
+                    createWaterfall(x, y + 20, z);
+                }
+            }
+
             addEnvironmentDetails();
+        }
+
+        function createWaterfall(x, y, z) {
+            const particleGeometry = new THREE.BufferGeometry();
+            const particleVertices = [];
+            for (let i = 0; i < 400; i++) {
+                particleVertices.push(
+                    x + (Math.random() - 0.5) * 12,
+                    y - Math.random() * 25,
+                    z + (Math.random() - 0.5) * 12
+                );
+            }
+            particleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(particleVertices, 3));
+            const particleMaterial = new THREE.PointsMaterial({
+                color: 0x88ccff,
+                size: 0.6,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending,
+                emissive: 0x88ccff,
+                emissiveIntensity: 0.4
+            });
+            const waterfall = new THREE.Points(particleGeometry, particleMaterial);
+            waterfall.userData = { baseY: y, speed: 0.12, baseX: x, baseZ: z };
+            scene.add(waterfall);
+            waterfalls.push(waterfall);
+        }
+
+        function createVolumetricFog() {
+            const fogGeometry = new THREE.PlaneGeometry(10000, 10000);
+            fogGeometry.rotateX(-Math.PI / 2);
+
+            const fogUniforms = {
+                time: { value: 0 },
+                color: { value: new THREE.Color(0xaaffcc) },
+                fogDensity: { value: 0.015 }
+            };
+
+            const fogVertexShader = `
+                varying vec3 vWorldPosition;
+                void main() {
+                    vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `;
+            const fogFragmentShader = `
+                uniform float time;
+                uniform vec3 color;
+                uniform float fogDensity;
+                varying vec3 vWorldPosition;
+
+                vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+                vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+                vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+                vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+                float snoise(vec3 v) { 
+                    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+                    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+                    vec3 i  = floor(v + dot(v, C.yyy));
+                    vec3 x0 = v - i + dot(i, C.xxx);
+                    vec3 g = step(x0.yzx, x0.xyz);
+                    vec3 l = 1.0 - g;
+                    vec3 i1 = min(g.xyz, l.zxy);
+                    vec3 i2 = max(g.xyz, l.zxy);
+                    vec3 x1 = x0 - i1 + C.xxx;
+                    vec3 x2 = x0 - i2 + C.yyy;
+                    vec3 x3 = x0 - D.yyy;
+                    i = mod289(i);
+                    vec4 p = permute(permute(permute(
+                             i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                           + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                           + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+                    float n_ = 0.142857142857;
+                    vec3 ns = n_ * D.wyz - D.xzx;
+                    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+                    vec4 x_ = floor(j * ns.z);
+                    vec4 y_ = floor(j - 7.0 * x_);
+                    vec4 x = x_ *ns.x + ns.yyyy;
+                    vec4 y = y_ *ns.x + ns.yyyy;
+                    vec4 h = 1.0 - abs(x) - abs(y);
+                    vec4 b0 = vec4(x.xy, y.xy);
+                    vec4 b1 = vec4(x.zw, y.zw);
+                    vec4 s0 = floor(b0)*2.0 + 1.0;
+                    vec4 s1 = floor(b1)*2.0 + 1.0;
+                    vec4 sh = -step(h, vec4(0.0));
+                    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+                    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+                    vec3 p0 = vec3(a0.xy, h.x);
+                    vec3 p1 = vec3(a0.zw, h.y);
+                    vec3 p2 = vec3(a1.xy, h.z);
+                    vec3 p3 = vec3(a1.zw, h.w);
+                    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+                    p0 *= norm.x;
+                    p1 *= norm.y;
+                    p2 *= norm.z;
+                    p3 *= norm.w;
+                    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+                    m = m * m;
+                    return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+                }
+
+                void main() {
+                    vec3 pos = vWorldPosition;
+                    float noise = snoise(pos * 0.04 + vec3(0.0, time * 0.08, 0.0)) * 0.5 + 0.5;
+                    float heightFade = smoothstep(-30.0, 80.0, pos.y);
+                    float density = fogDensity * noise * (1.0 - heightFade);
+                    gl_FragColor = vec4(color, density);
+                }
+            `;
+
+            fogMaterial = new THREE.ShaderMaterial({
+                uniforms: fogUniforms,
+                vertexShader: fogVertexShader,
+                fragmentShader: fogFragmentShader,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+            const fogLayer = new THREE.Mesh(fogGeometry, fogMaterial);
+            fogLayer.position.y = 25;
+            scene.add(fogLayer);
+
+            const fogParticleGeometry = new THREE.BufferGeometry();
+            const fogParticleVertices = [];
+            for (let i = 0; i < 3000; i++) {
+                fogParticleVertices.push(
+                    (Math.random() - 0.5) * 8000,
+                    Math.random() * 100,
+                    (Math.random() - 0.5) * 8000
+                );
+            }
+            fogParticleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(fogParticleVertices, 3));
+            const fogParticleMaterial = new THREE.PointsMaterial({
+                color: 0xaaffcc,
+                size: 6,
+                transparent: true,
+                opacity: 0.25,
+                blending: THREE.AdditiveBlending
+            });
+            fogParticles = new THREE.Points(fogParticleGeometry, fogParticleMaterial);
+            scene.add(fogParticles);
         }
 
         function createShip() {
@@ -424,10 +574,10 @@
                 ring.position.y = -0.1;
                 npcShip.add(ring);
 
-                npcShip.position.set(Math.random() * 1200 - 600, 50 + Math.random() * 100, Math.random() * 1200 - 600);
+                npcShip.position.set(Math.random() * 2000 - 1000, 50 + Math.random() * 150, Math.random() * 2000 - 1000);
                 npcShip.userData = {
-                    speed: Math.random() * 0.1 + 0.05,
-                    orbitRadius: Math.random() * 400 + 200,
+                    speed: Math.random() * 0.05 + 0.03, // Softer for harmony
+                    orbitRadius: Math.random() * 600 + 300,
                     orbitAngle: Math.random() * Math.PI * 2,
                     heightAngle: Math.random() * Math.PI
                 };
@@ -437,12 +587,12 @@
         }
 
         function addEnvironmentDetails() {
-            for (let i = 0; i < 20; i++) {
+            for (let i = 0; i < 30; i++) {
                 const orbGeometry = new THREE.SphereGeometry(Math.random() * 4 + 2, 12, 12);
                 const orbMaterial = new THREE.MeshBasicMaterial({ color: 0x88ccff, transparent: true, opacity: 0.75 });
                 const orb = new THREE.Mesh(orbGeometry, orbMaterial);
-                orb.position.set(Math.random() * 1200 - 600, Math.random() * 80 + 120, Math.random() * 1200 - 600);
-                orb.userData = { speed: Math.random() * 0.02 + 0.01, hover: Math.random() * 3 };
+                orb.position.set(Math.random() * 7000 - 3500, Math.random() * 100 + 150, Math.random() * 7000 - 3500);
+                orb.userData = { speed: Math.random() * 0.015 + 0.01, hover: Math.random() * 3 };
                 scene.add(orb);
             }
 
@@ -469,38 +619,40 @@
                 scene.add(base, spire);
             }
 
-            for (let i = 0; i < 80; i++) {
+            for (let i = 0; i < 100; i++) {
                 const angle = Math.random() * Math.PI * 2;
-                const radius = Math.random() * 600 + 150;
+                const radius = Math.random() * 2000 + 500;
                 createSpire(Math.cos(angle) * radius, Math.sin(angle) * radius);
             }
 
-            for (let i = 0; i < 12; i++) {
-                const poolGeometry = new THREE.CircleGeometry(10 + Math.random() * 5, 16);
+            for (let i = 0; i < 15; i++) {
+                const poolGeometry = new THREE.CircleGeometry(12 + Math.random() * 6, 16);
                 const poolMaterial = new THREE.MeshBasicMaterial({ color: 0x00ccff, emissive: 0x00ccff, transparent: true, opacity: 0.6 });
                 const pool = new THREE.Mesh(poolGeometry, poolMaterial);
                 pool.rotation.x = -Math.PI / 2;
-                pool.position.set(Math.random() * 1200 - 600, fractalNoise(pool.position.x, pool.position.z) + 0.1, Math.random() * 1200 - 600);
+                const x = Math.random() * 7000 - 3500;
+                const z = Math.random() * 7000 - 3500;
+                pool.position.set(x, fractalNoise(x, z) + 0.1, z);
                 scene.add(pool);
             }
 
-            for (let i = 0; i < 5; i++) {
-                const islandGeometry = new THREE.PlaneGeometry(30 + Math.random() * 15, 30 + Math.random() * 15, 12, 12);
+            for (let i = 0; i < 8; i++) {
+                const islandGeometry = new THREE.PlaneGeometry(40 + Math.random() * 20, 40 + Math.random() * 20, 12, 12);
                 islandGeometry.rotateX(-Math.PI / 2);
                 const vertices = islandGeometry.attributes.position.array;
                 for (let j = 0; j < vertices.length; j += 3) {
-                    vertices[j + 1] += Math.random() * 8 - 4;
+                    vertices[j + 1] += Math.random() * 10 - 5;
                 }
                 islandGeometry.computeVertexNormals();
                 const islandMaterial = new THREE.MeshStandardMaterial({ color: 0x304a7a, roughness: 0.9 });
                 const island = new THREE.Mesh(islandGeometry, islandMaterial);
-                island.position.set(Math.random() * 1200 - 600, 60 + Math.random() * 60, Math.random() * 1200 - 600);
+                island.position.set(Math.random() * 7000 - 3500, 80 + Math.random() * 80, Math.random() * 7000 - 3500);
                 island.castShadow = true;
                 island.receiveShadow = true;
                 scene.add(island);
             }
 
-            for (let i = 0; i < 30; i++) {
+            for (let i = 0; i < 40; i++) {
                 const crystalGeometry = new THREE.TetrahedronGeometry(3 + Math.random() * 2, 1);
                 const crystalMaterial = new THREE.MeshPhongMaterial({
                     color: 0x00ffcc,
@@ -510,8 +662,8 @@
                     opacity: 0.85
                 });
                 const crystal = new THREE.Mesh(crystalGeometry, crystalMaterial);
-                const x = Math.random() * 1200 - 600;
-                const z = Math.random() * 1200 - 600;
+                const x = Math.random() * 7000 - 3500;
+                const z = Math.random() * 7000 - 3500;
                 crystal.position.set(x, fractalNoise(x, z) + 3, z);
                 crystal.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
                 crystal.castShadow = true;
@@ -600,6 +752,8 @@
                 joystick.style.transition = '0.2s';
                 joystick.style.left = '25px';
                 joystick.style.top = '25px';
+                targetLon = lon;
+                targetLat = lat;
             }
         }
 
@@ -664,7 +818,7 @@
         }
 
         function updateCosmicEnvironment() {
-            time += 0.015;
+            time += 0.012; // Slower for serene flow
             cycleTime += 0.015;
 
             const cycleDuration = 60;
@@ -672,32 +826,57 @@
             skyMaterial.uniforms.time.value = time;
             skyMaterial.uniforms.dayNight.value = dayNight;
             skyMaterial.uniforms.pulseIntensity.value = 0.5 * (1 - dayNight);
+            fogMaterial.uniforms.time.value = time;
 
-            cosmicLights[0].position.set(Math.cos(time) * 800, 500 + Math.sin(time * 0.8) * 100, Math.sin(time) * 800);
-            cosmicLights[1].position.set(Math.cos(time + 2) * 750, 550 + Math.sin(time * 0.9) * 80, Math.sin(time + 2) * 750);
-            cosmicLights[2].position.set(Math.cos(time + 4) * 700, 600 + Math.sin(time) * 60, Math.sin(time + 4) * 700);
+            cosmicLights[0].position.set(Math.cos(time) * 1000, 600 + Math.sin(time * 0.8) * 120, Math.sin(time) * 1000);
+            cosmicLights[1].position.set(Math.cos(time + 2) * 900, 650 + Math.sin(time * 0.9) * 100, Math.sin(time + 2) * 900);
+            cosmicLights[2].position.set(Math.cos(time + 4) * 800, 700 + Math.sin(time) * 80, Math.sin(time + 4) * 800);
 
             scene.children.forEach(child => {
-                if (child.userData.speed && !child.userData.orbitRadius) {
+                if (child.userData.speed && !child.userData.orbitRadius && !child.userData.baseY) {
                     child.position.x += child.userData.speed;
-                    child.position.y = 120 + Math.sin(time + child.userData.hover) * 10;
-                    if (child.position.x > 600) child.position.x = -600;
+                    child.position.y = 150 + Math.sin(time + child.userData.hover) * 12;
+                    if (child.position.x > 3500) child.position.x = -3500;
                     child.scale.setScalar(1 + Math.sin(time * 2 + child.userData.hover) * 0.15);
                 }
             });
 
             npcShips.forEach(ship => {
-                ship.userData.orbitAngle += ship.userData.speed * 0.02;
-                ship.userData.heightAngle += ship.userData.speed * 0.01;
+                ship.userData.orbitAngle += ship.userData.speed * 0.015;
+                ship.userData.heightAngle += ship.userData.speed * 0.008;
                 ship.position.x = Math.cos(ship.userData.orbitAngle) * ship.userData.orbitRadius;
                 ship.position.z = Math.sin(ship.userData.orbitAngle) * ship.userData.orbitRadius;
-                ship.position.y = 50 + Math.sin(ship.userData.heightAngle) * 100;
-                ship.rotation.y += 0.03;
-                if (ship.position.x > 1500) ship.position.x = -1500;
-                if (ship.position.x < -1500) ship.position.x = 1500;
-                if (ship.position.z > 1500) ship.position.z = -1500;
-                if (ship.position.z < -1500) ship.position.z = 1500;
+                ship.position.y = 50 + Math.sin(ship.userData.heightAngle) * 120;
+                ship.rotation.y += 0.02;
+                if (ship.position.x > 4000) ship.position.x = -4000;
+                if (ship.position.x < -4000) ship.position.x = 4000;
+                if (ship.position.z > 4000) ship.position.z = -4000;
+                if (ship.position.z < -4000) ship.position.z = 4000;
             });
+
+            waterfalls.forEach(waterfall => {
+                const positions = waterfall.geometry.attributes.position.array;
+                for (let i = 1; i < positions.length; i += 3) {
+                    positions[i] -= waterfall.userData.speed;
+                    if (positions[i] < fractalNoise(positions[i - 1], positions[i + 1])) {
+                        positions[i] = waterfall.userData.baseY;
+                        positions[i - 1] = waterfall.userData.baseX + (Math.random() - 0.5) * 12;
+                        positions[i + 1] = waterfall.userData.baseZ + (Math.random() - 0.5) * 12;
+                    }
+                }
+                waterfall.geometry.attributes.position.needsUpdate = true;
+            });
+
+            const fogPositions = fogParticles.geometry.attributes.position.array;
+            for (let i = 0; i < fogPositions.length; i += 3) {
+                fogPositions[i] += Math.sin(time + fogPositions[i + 1]) * 0.015;
+                fogPositions[i + 2] += Math.cos(time + fogPositions[i]) * 0.015;
+                if (fogPositions[i] > 4000) fogPositions[i] = -4000;
+                if (fogPositions[i] < -4000) fogPositions[i] = 4000;
+                if (fogPositions[i + 2] > 4000) fogPositions[i + 2] = -4000;
+                if (fogPositions[i + 2] < -4000) fogPositions[i + 2] = 4000;
+            }
+            fogParticles.geometry.attributes.position.needsUpdate = true;
         }
 
         function updateMovement() {
@@ -723,36 +902,12 @@
             ship.rotation.y += 0.03;
 
             const offset = new THREE.Vector3(0, cameraHeight, cameraDistance).applyQuaternion(camera.quaternion);
-            camera.position.lerp(ship.position.clone().add(offset), 0.15);
-
-            const ground = scene.children.find(child => child.isMesh && child.geometry.type === 'PlaneGeometry');
-            if (ground) {
-                const raycaster = new THREE.Raycaster(ship.position, new THREE.Vector3(0, -1, 0), 0, 20);
-                const intersects = raycaster.intersectObject(ground);
-                if (intersects.length > 0) {
-                    if (ship.position.y < intersects[0].point.y + 3) {
-                        ship.position.y = intersects[0].point.y + 3;
-                        velocity.y = Math.max(0, velocity.y);
-                    }
-                    const colors = ground.geometry.attributes.color || new THREE.Float32BufferAttribute(new Float32Array(ground.geometry.attributes.position.count * 3), 3);
-                    const shipX = Math.floor((ship.position.x + 1500) / 3000 * 256);
-                    const shipZ = Math.floor((ship.position.z + 1500) / 3000 * 256);
-                    for (let i = 0; i < colors.count; i++) {
-                        const dx = Math.abs(i % 256 - shipX);
-                        const dz = Math.abs(Math.floor(i / 256) - shipZ);
-                        const dist = Math.sqrt(dx * dx + dz * dz);
-                        const tint = Math.max(0, 1 - dist / 20);
-                        colors.setXYZ(i, 0.12 + tint * 0.1, 0.18 + tint * 0.2, 0.29 + tint * 0.2);
-                    }
-                    ground.geometry.setAttribute('color', colors);
-                    ground.geometry.attributes.color.needsUpdate = true;
-                }
-            }
+            camera.position.lerp(ship.position.clone().add(offset), 0.1); // Smoother position lerp
         }
 
         function updateCamera() {
-            lon = THREE.MathUtils.lerp(lon, targetLon, 0.2);
-            lat = THREE.MathUtils.lerp(lat, targetLat, 0.2);
+            lon = THREE.MathUtils.lerp(lon, targetLon, 0.15); // Finer rotation lerp
+            lat = THREE.MathUtils.lerp(lat, targetLat, 0.15);
             lat = Math.max(-85, Math.min(85, lat));
 
             phi = THREE.MathUtils.degToRad(90 - lat);
@@ -764,7 +919,33 @@
                 camera.position.z + Math.sin(phi) * Math.sin(theta)
             );
 
-            camera.lookAt(lookAt);
+            camera.lookAt(lookAt.lerp(ship.position, 0.05)); // Damped look-at for silkiness
+
+            const ground = scene.children.find(child => child.isMesh && child.geometry.type === 'PlaneGeometry');
+            if (ground) {
+                const raycaster = new THREE.Raycaster(ship.position, new THREE.Vector3(0, -1, 0), 0, 20);
+                const intersects = raycaster.intersectObject(ground);
+                if (intersects.length > 0) {
+                    const groundHeight = intersects[0].point.y + 3;
+                    if (ship.position.y < groundHeight) {
+                        ship.position.y = groundHeight;
+                        velocity.y = Math.max(0, velocity.y);
+                    }
+                }
+
+                const colors = ground.geometry.attributes.color || new THREE.Float32BufferAttribute(new Float32Array(ground.geometry.attributes.position.count * 3), 3);
+                const shipX = Math.floor((ship.position.x + 4000) / 8000 * 512);
+                const shipZ = Math.floor((ship.position.z + 4000) / 8000 * 512);
+                for (let i = 0; i < colors.count; i++) {
+                    const dx = Math.abs(i % 512 - shipX);
+                    const dz = Math.abs(Math.floor(i / 512) - shipZ);
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+                    const tint = Math.max(0, 1 - dist / 40);
+                    colors.setXYZ(i, 0.12 + tint * 0.1, 0.18 + tint * 0.2, 0.29 + tint * 0.2);
+                }
+                ground.geometry.setAttribute('color', colors);
+                ground.geometry.attributes.color.needsUpdate = true;
+            }
         }
 
         function animate() {
