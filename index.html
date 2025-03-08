@@ -168,7 +168,7 @@
     </div>
 
     <div id="instructions">
-        W/S: Thrust forward/back (Double-tap W for warp boost!) | A/D: Strafe | Joystick/Mouse: Look around | Arrow keys: Rotate view | +/-: Zoom in/out | Space: Tap to lift, hold 3s+ to blast off
+        W/S: Thrust forward/back (Double-tap W for warp boost!) | A/D: Strafe | Joystick/Mouse: Look around | Arrow keys: Rotate view | +/-: Zoom in/out | Space: Up (hold 3s+ to blast) | Shift: Down
     </div>
     <canvas id="canvas"></canvas>
     <div id="joystick-container">
@@ -194,8 +194,8 @@
 
         let camera, scene, renderer, ship, skyMaterial, fogMaterial, cosmicLights = [], npcShips = [], waterfalls = [], fogParticles;
         let velocity = new THREE.Vector3();
-        const maxSpeed = 2.0, baseAccel = 0.5, boostAccel = 1.5, friction = 0.95, liftSpeed = 1.0, blastSpeed = 10;
-        let keys = { w: false, s: false, a: false, d: false, space: false };
+        const maxSpeed = 8.0, baseAccel = 2.0, boostAccel = 6.0, friction = 0.95, liftSpeed = 4.0, blastSpeed = 40, verticalSpeed = 4.0;
+        let keys = { w: false, s: false, a: false, d: false, space: false, shift: false };
         let isUserInteracting = false, onPointerDownMouseX = 0, onPointerDownMouseY = 0;
         let lon = 0, onPointerDownLon = 0, lat = 0, onPointerDownLat = 0;
         let targetLon = 0, targetLat = 0;
@@ -703,12 +703,13 @@
                     case 's': keys.s = true; break;
                     case 'a': keys.a = true; break;
                     case 'd': keys.d = true; break;
-                    case '+': case '=': cameraDistance = Math.max(5, cameraDistance - 1); break;
-                    case '-': cameraDistance = Math.min(30, cameraDistance + 1); break;
                     case ' ': 
                         keys.space = true; 
                         spaceHoldTime = performance.now(); 
                         break;
+                    case 'shift': keys.shift = true; break;
+                    case '+': case '=': cameraDistance = Math.max(5, cameraDistance - 1); break;
+                    case '-': cameraDistance = Math.min(30, cameraDistance + 1); break;
                 }
             });
             document.addEventListener('keyup', (e) => {
@@ -724,6 +725,7 @@
                             velocity.y += blastSpeed;
                         }
                         break;
+                    case 'shift': keys.shift = false; break;
                 }
             });
             document.addEventListener('keydown', onKeyDown);
@@ -886,27 +888,38 @@
             const now = performance.now();
             const accel = (now < boostEndTime) ? boostAccel : baseAccel;
 
+            // Horizontal movement
             if (keys.w) velocity.add(forward.multiplyScalar(accel));
             if (keys.s) velocity.add(forward.multiplyScalar(-accel));
             if (keys.a) velocity.add(right.multiplyScalar(-accel));
             if (keys.d) velocity.add(right.multiplyScalar(accel));
-            if (keys.space) velocity.y += liftSpeed;
+
+            // Vertical movement
+            if (keys.space) velocity.y += verticalSpeed;
+            if (keys.shift) velocity.y -= verticalSpeed;
+            if (!keys.space && !keys.shift && Math.abs(velocity.x) < 0.1 && Math.abs(velocity.z) < 0.1) {
+                velocity.y = Math.sin(time * 2) * 0.05; // Gentle hover when still
+            }
 
             velocity.clampLength(0, maxSpeed);
             velocity.multiplyScalar(friction);
 
             ship.position.add(velocity);
 
-            ship.rotation.x = THREE.MathUtils.lerp(ship.rotation.x, velocity.z * 0.15, 0.2);
-            ship.rotation.z = THREE.MathUtils.lerp(ship.rotation.z, -velocity.x * 0.15, 0.2);
-            ship.rotation.y += 0.03;
+            // Camera-relative tilt
+            const forwardVel = velocity.dot(forward);
+            const rightVel = velocity.dot(right);
+            const maxTilt = THREE.MathUtils.degToRad(20); // Max 20° tilt
+            ship.rotation.x = THREE.MathUtils.lerp(ship.rotation.x, THREE.MathUtils.clamp(forwardVel * 0.05, -maxTilt, maxTilt), 0.2);
+            ship.rotation.z = THREE.MathUtils.lerp(ship.rotation.z, THREE.MathUtils.clamp(-rightVel * 0.05, -maxTilt, maxTilt), 0.2);
+            ship.rotation.y = theta; // Align yaw with camera
 
             const offset = new THREE.Vector3(0, cameraHeight, cameraDistance).applyQuaternion(camera.quaternion);
-            camera.position.lerp(ship.position.clone().add(offset), 0.15); // Your original camera lerp
+            camera.position.lerp(ship.position.clone().add(offset), 0.2);
         }
 
         function updateCamera() {
-            lon = THREE.MathUtils.lerp(lon, targetLon, 0.2); // Your original rotation lerp
+            lon = THREE.MathUtils.lerp(lon, targetLon, 0.2);
             lat = THREE.MathUtils.lerp(lat, targetLat, 0.2);
             lat = Math.max(-85, Math.min(85, lat));
 
@@ -919,7 +932,7 @@
                 camera.position.z + Math.sin(phi) * Math.sin(theta)
             );
 
-            camera.lookAt(lookAt); // Your original look-at
+            camera.lookAt(lookAt);
 
             const ground = scene.children.find(child => child.isMesh && child.geometry.type === 'PlaneGeometry');
             if (ground) {
